@@ -348,6 +348,57 @@ struct bigint {
 };
 
 //-----------------------------------------------//
+//               Auto mod number                //
+//-----------------------------------------------//
+template<ll M>
+struct modint {
+ 
+    static ll _pow(ll n, ll k) {
+        ll r = 1;
+        for (; k > 0; k >>= 1, n = (n*n)%M)
+            if (k&1) r = (r*n)%M;
+        return r;
+    }
+ 
+    ll v; modint(ll n = 0) : v(n%M) { v += (M&(0-(v<0))); }
+    
+    friend string to_string(const modint n) { return to_string(n.v); }
+    friend istream& operator>>(istream& i, modint& n) { return i >> n.v; }
+    friend ostream& operator<<(ostream& o, const modint n) { return o << n.v; }
+    template<typename T> explicit operator T() { return T(v); }
+ 
+    friend bool operator==(const modint n, const modint m) { return n.v == m.v; }
+    friend bool operator!=(const modint n, const modint m) { return n.v != m.v; }
+    friend bool operator<(const modint n, const modint m) { return n.v < m.v; }
+    friend bool operator<=(const modint n, const modint m) { return n.v <= m.v; }
+    friend bool operator>(const modint n, const modint m) { return n.v > m.v; }
+    friend bool operator>=(const modint n, const modint m) { return n.v >= m.v; }
+ 
+    modint& operator+=(const modint n) { v += n.v; v -= (M&(0-(v>=M))); return *this; }
+    modint& operator-=(const modint n) { v -= n.v; v += (M&(0-(v<0))); return *this; }
+    modint& operator*=(const modint n) { v = (v*n.v)%M; return *this; }
+    modint& operator/=(const modint n) { v = (v*_pow(n.v, M-2))%M; return *this; }
+    friend modint operator+(const modint n, const modint m) { return modint(n) += m; }
+    friend modint operator-(const modint n, const modint m) { return modint(n) -= m; }
+    friend modint operator*(const modint n, const modint m) { return modint(n) *= m; }
+    friend modint operator/(const modint n, const modint m) { return modint(n) /= m; }
+    modint& operator++() { return *this += 1; }
+    modint& operator--() { return *this -= 1; }
+    modint operator++(int) { modint t = *this; return *this += 1, t; }
+    modint operator--(int) { modint t = *this; return *this -= 1, t; }
+    modint operator+() { return *this; }
+    modint operator-() { return modint(0) -= *this; }
+ 
+    // O(logk) modular exponentiation
+    modint pow(const ll k) const {
+        return k < 0 ? _pow(v, M-1-(-k%(M-1))) : _pow(v, k);
+    }
+    modint inv() const { return _pow(v, M-2); }
+};
+ 
+using mod = modint<998244353>;
+
+//-----------------------------------------------//
 //                  Bitset int                   //
 //-----------------------------------------------//
 const int nbit = 50;
@@ -402,6 +453,37 @@ struct bigh{
 };
 
 //-----------------------------------------------//
+//                     LCM                       //
+//-----------------------------------------------//
+ll lcm(ll a, ll b){
+    return (a / __gcd(a, b)) * b;
+}
+
+//-----------------------------------------------//
+//                  Prime array                  //
+//-----------------------------------------------//
+const int MAX = 200005; 
+int prime[MAX];
+vector<int> primes[MAX];
+void sieve(){
+  for (int i = 2; i < MAX; i++) {
+    if (prime[i] == 0) {
+      for (int j = i * 2; j < MAX; j += i)
+        if(prime[j] == 0) prime[j] = i;
+      prime[i] = i;
+    }
+  }
+  for (int i = 2; i < MAX; i++) {
+    int val = i;
+    while(val > 1){
+      int d = prime[val];
+      val /= d;
+      primes[i].push_back(d);
+    }
+  }
+}
+
+//-----------------------------------------------//
 //                 ijtoi, itoij                  //
 //-----------------------------------------------//
 int ijtoi(int i, int j, int mx){
@@ -411,6 +493,113 @@ pii itoij(int i, int mx){
   return {(i+mx-1)/mx, ((i-1)%mx) + 1};
 }
 
+//-----------------------------------------------//
+//                 Khop, cau                     //
+//-----------------------------------------------//
+int CriticalEdge = 0;
+bool CriticalNode[200005];
+int Num[200005], Low[200005], Time = 0;
+void tarjan(int u, int p) {
+    int NumChild = 0;
+    Low[u] = Num[u] = ++Time;
+    for (int v : ed[u]){
+        if (v != p) {
+            if (Num[v] != 0)
+                Low[u] = min(Low[u], Num[v]);
+            else {
+                tarjan(v, u);
+                NumChild++;
+                Low[u] = min(Low[u], Low[v]);
+
+                if (Low[v] >= Num[v])
+                    CriticalEdge++;
+
+                if (u == p) {
+                    if (NumChild >= 2)
+                        CriticalNode[u] = true;
+                } else {
+                    if (Low[v] >= Num[u])
+                        CriticalNode[u] = true;
+                }
+            }
+        }
+    }
+}
+
+//-----------------------------------------------//
+//                    Tarjan                     //
+//-----------------------------------------------//
+int Num[200005], Low[200005], Time = 0;
+int Count = 0;
+stack<int> st;
+
+void tarjan(int u) {
+    Low[u] = Num[u] = ++Time;
+    st.push(u);
+    for (int v : ed[u]){
+        if (Num[v] != 0)
+            Low[u] = min(Low[u], Num[v]);
+        else {
+            tarjan(v);
+            Low[u] = min(Low[u], Low[v]);
+        }
+    }
+    if (Num[u] == Low[u]) {  // found one
+        Count++;
+        int v;
+        do {
+            v = st.top();
+            st.pop();
+            Num[v] = Low[v] = ooii;  // remove v from graph
+        } while (v != u);
+    }
+}
+
+///-----------------------------------------------//
+//                     2-Sat                     //
+//-----------------------------------------------//
+// u V v = nel(u) -> v = nel(v) -> u
+// https://drive.google.com/file/d/15UbO4GWo1G6cUBDnV6uWk0KxjuEdurCG/view
+int Color[200005], Num[200005], Low[200005], Time; // Color 1=False, 2=True
+stack<int> st;
+bool Invalid = false;
+int nel(int u){
+  return (u + n - 1)%(2*n) + 1;
+}
+void set_color(int u, int x) {
+    if (Color[u] == (x ^ 3))
+        Invalid = true;
+    else
+        Color[u] = x;
+    if (Color[nel(u)] == x)
+        Invalid = true;
+    else
+        Color[nel(u)] = (x ^ 3);
+}
+void tarjan(int u) {
+    Low[u] = Num[u] = ++Time;
+    st.push(u);
+    for (int v : ed[u]){
+        if (Num[v] != 0)
+            Low[u] = min(Low[u], Num[v]);
+        else {
+            tarjan(v);
+            Low[u] = min(Low[u], Low[v]);
+        }
+        if (Color[v] == 1) set_color(u, 1); // False
+    }
+    if (Low[u] == Num[u]) {
+        int v = 0;
+        if (Color[u] == 0)
+            set_color(u, 2); // True
+        do {
+            v = st.top();
+            st.pop();
+            set_color(v, Color[u]);
+            Num[v] = Low[v] = ooii;
+        } while (u != v);
+    }
+}
 
 //-----------------------------------------------//
 //                    Bitset                     //
@@ -508,16 +697,75 @@ struct fac{
 //                  Math prox                    //
 //-----------------------------------------------//
 ll pow_hota(ll ax, ll bx){
-    if(bx == 0) return 1ll;
-    if(bx == 1) return ax%mod;
-    ll cx = pow_hota(ax, bx/2);
-    cx = (cx*cx)%mod;
-    if(bx%2) cx = (cx*ax)%mod;
+    ll cx = 1;
+    while(bx > 0) {
+      if(bx & 1)
+        cx = 1ll * cx * ax % mod;
+      ax = 1ll * ax * ax % mod;
+      bx >>= 1;
+    }
     return cx;
 }
 
+ll divmod(ll ax, ll bx){
+    ax%=mod; bx%=mod;
+    return (ax*pow_hota(bx, mod-2))%mod;
+}
+
 ll Cx(ll _n, ll _k){
-    return (ft.get(_n)*pow_hota(ft.get(_k)*ft.get(_n - _k)%mod, mod-2))%mod;
+    return divmod(ft.get(_n), ft.get(_k)*ft.get(_n - _k)%mod)%mod;
+}
+
+//-----------------------------------------------//
+//                  LCM MOD                      //
+//-----------------------------------------------//
+const int MAX = 200000; 
+int prime[MAX];
+unordered_map<int, int> max_map;
+ll pow_hota(ll ax, ll bx){
+    ll cx = 1;
+    while(bx > 0) {
+      if(bx & 1)
+        cx = 1ll * cx * ax % mod;
+      ax = 1ll * ax * ax % mod;
+      bx >>= 1;
+    }
+    return cx;
+}
+void sieve()
+{
+    prime[0] = prime[1] = 1;
+    for (int i = 2; i < MAX; i++) {
+        if (prime[i] == 0) {
+            for (int j = i * 2; j < MAX; j += i) {
+                if (prime[j] == 0) {
+                    prime[j] = i;
+                }
+            }
+            prime[i] = i;
+        }
+    }
+}
+// LCM MOD
+ll lcmModuloM(const int* ar, int n){
+    for (int i = 0; i < n; i++) {
+        int num = ar[i];
+        unordered_map<int, int> temp;
+        while (num > 1) {
+            int factor = prime[num];
+            temp[factor]++;
+            num /= factor;
+        }
+ 
+        for (auto it : temp) {
+            max_map[it.first] = max(max_map[it.first], it.second);
+        }
+    }
+    ll ans = 1;
+    for (auto it : max_map) {
+        ans = (ans * pow_hota(it.F, it.S)) % mod;
+    }
+    return ans;
 }
 
 //-----------------------------------------------//
@@ -931,9 +1179,6 @@ struct IT{
 //-----------------------------------------------//
 //              IT with lazy update              //
 //-----------------------------------------------//
-struct sem{
-    int l, r, w;
-} sems[300005];
 struct node{
     int val, lazy;
 };
