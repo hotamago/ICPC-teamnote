@@ -453,6 +453,136 @@ struct bigint
 };
 
 //-----------------------------------------------//
+//               Fast random                     //
+//-----------------------------------------------//
+struct hotaRandomNumber
+{
+    int seed;
+    hotaRandomNumber()
+    {
+        seed = 0;
+    }
+    hotaRandomNumber(int seed)
+    {
+        init(seed);
+    }
+    void init(int seed)
+    {
+        this->seed = seed;
+    }
+    int nextInt()
+    {
+        return seed = ((1ll * seed * 214013ll + 2531011ll) >> 16) & 0x7fff;
+    }
+    // Include l, r
+    int getRandomRange(int l, int r)
+    {
+        return l + nextInt() % (r - l + 1);
+    }
+    // Random permutation of n elements
+    vector<int> randomPermutation(int n)
+    {
+        vector<int> res;
+        for (int i = 1; i <= n; i++)
+        {
+            res.push_back(i);
+        }
+        random_shuffle(res.begin(), res.end(), [&](int x)
+                       { return getRandomRange(0, x - 1); });
+        return res;
+    }
+};
+
+//-----------------------------------------------//
+//                      FFT                      //
+//-----------------------------------------------//
+#include <complex.h>
+typedef complex<double> baseFFT;
+struct FFTmodel
+{
+    vector<baseFFT> OrgValue;
+    FFTmodel(vector<baseFFT> value)
+    {
+        OrgValue = value;
+    }
+
+    vector<baseFFT> getFFT()
+    {
+        return fastFFT(OrgValue, false);
+    }
+
+    vector<int> getReal()
+    {
+        return fastFFT(OrgValue, true);
+    }
+
+    static int nRevBit(int nbit, int mask)
+    {
+        int newMask = 0;
+        for (int i = 0; i < nbit; i++)
+        {
+            newMask |= (mask >> i & 1) << (nbit - i - 1);
+        }
+        return newMask;
+    }
+
+    static vector<baseFFT> fastFFT(vector<baseFFT> &a, bool invert = false)
+    {
+        int n = a.size();
+        if (n == 1)
+            return a;
+
+        int nbit = 1;
+        while ((1 << nbit) < n)
+            nbit++;
+
+        for (int i = 0; i < n; i++)
+        {
+            int j = nRevBit(nbit, i);
+            if (i < j)
+                swap(a[i], a[j]);
+        }
+
+        for (int len = 2; len <= n; len <<= 1)
+        {
+            double ang = 2 * M_PI / len * (invert ? -1 : 1);
+            baseFFT wlen = polar(1.0, ang);
+            for (int i = 0; i < n; i += len)
+            {
+                baseFFT w(1);
+                for (int j = 0; j < len / 2; j++)
+                {
+                    baseFFT u = a[i + j], v = a[i + j + len / 2] * w;
+                    a[i + j] = u + v;
+                    a[i + j + len / 2] = u - v;
+                    w *= wlen;
+                }
+            }
+        }
+
+        if (invert)
+        {
+            for (int i = 0; i < n; i++)
+                a[i] /= n;
+        }
+        return a;
+    }
+
+    static int baseFFT2int(baseFFT x)
+    {
+        return (int)(x.real() + 0.5);
+    }
+
+    static int getSize2(int n)
+    {
+        int res = 1;
+        while (res < n)
+            res *= 2;
+        return res;
+    }
+}
+
+//-----------------------------------------------//
 //                  custom hashmap               //
 //-----------------------------------------------//
 template <typename T>
@@ -516,6 +646,60 @@ struct hota_set_hashstring
     {
         int h = hashstring(s);
         return find(table[h].begin(), table[h].end(), s) != table[h].end();
+    }
+};
+
+struct hota_hashmap
+{
+    int base, mod;
+    vector<bool> table_check;
+    vector<int> table_val;
+    hota_hashmap(int _base, int _mod)
+    {
+        base = _base;
+        mod = _mod;
+        table_check = vector<bool>(mod);
+        table_val = vector<int>(mod);
+    }
+    int hash(string s)
+    {
+        int res = 0;
+        for (int i = 0; i < s.size(); i++)
+        {
+            int idchar = 0;
+            if (s[i] >= '0' && s[i] <= '9')
+            {
+                idchar = s[i] - '0';
+            }
+            else if (s[i] >= 'A' && s[i] <= 'Z')
+            {
+                idchar = s[i] - 'A' + 10;
+            }
+            else if (s[i] >= 'a' && s[i] <= 'z')
+            {
+                idchar = s[i] - 'a' + 36;
+            }
+            res = (1ll * res * base + (s[i] - '0' + 1)) % mod;
+        }
+        return res;
+    }
+    void insert(string s, int val)
+    {
+        int h = hash(s);
+        table_check[h] = true;
+        table_val[h] = val;
+    }
+    int find(string s)
+    {
+        int h = hash(s);
+        if (table_check[h])
+            return table_val[h];
+        return -1;
+    }
+    bool exits(string s)
+    {
+        int h = hash(s);
+        return table_check[h];
     }
 };
 
